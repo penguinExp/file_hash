@@ -1,26 +1,31 @@
-use file::FileHash;
+use hash::FileHash;
 
-mod file;
-mod hash;
+pub mod file;
+pub mod hash;
 
 fn main() {
-    let mut file_hash = FileHash::init("hash.tc").expect("Unable to open the file");
+    let mut file_hash = FileHash::init().expect("Unable to read the file");
 
-    let key = [42u8; 64];
-    let value = b"Hello, FileHash!";
+    let _ = file_hash.write("key", "value");
+    let _ = file_hash.write("key2", "value2");
 
-    file_hash.add(key, value).expect("Failed to add entry");
-
-    let retrieved = file_hash.get(&key).expect("Failed to get entry");
-
-    println!("Fetched {:?}", retrieved);
-
-    match file_hash.delete(&key) {
+    match file_hash.read("key2") {
+        Ok(val) => {
+            println!("{}", val);
+        }
         Err(e) => {
             eprintln!("{e}");
         }
+    }
+
+    let _ = file_hash.write("key2", "value3");
+
+    match file_hash.read("key2") {
         Ok(val) => {
-            println!("Deleted {:?}", val);
+            println!("{}", val);
+        }
+        Err(e) => {
+            eprintln!("{e}");
         }
     }
 }
