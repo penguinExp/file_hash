@@ -1,6 +1,7 @@
 use hash::FileHash;
 
 pub mod file;
+pub mod file_new;
 pub mod hash;
 
 fn main() {

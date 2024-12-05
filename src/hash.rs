@@ -91,6 +91,12 @@ impl FileHash {
             return Ok(());
         }
 
+        // NOTE (For sharded keys):
+        //
+        // 1. check if the index is already occupied
+        // 2. check if the key of current index is same as the key,
+        // and index == 1 || 2, then replace it
+
         let buffer = Bucket::new(key, value, 1);
 
         let mut pos = offset;
