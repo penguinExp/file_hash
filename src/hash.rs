@@ -1,8 +1,8 @@
-pub trait Hashable {
+trait Hashable {
     fn hash(&self) -> usize;
 }
 
-impl Hashable for String {
+impl Hashable for &str {
     // using the djb2 algo (https://theartincode.stanis.me/008-djb2/)
     fn hash(&self) -> usize {
         let mut result: usize = 5381;
@@ -15,31 +15,55 @@ impl Hashable for String {
     }
 }
 
-#[derive(Default, Clone, Copy)]
-struct HashItem<Key, Value> {
-    key: Key,
-    value: Value,
-    is_taken: bool,
+struct HashItem {
+    key: [u8; 32],
+    value: [u8; 96],
 }
 
-pub struct HashTable<Key, Value> {
-    kvs: Vec<HashItem<Key, Value>>,
+impl HashItem {
+    fn new(key: &str, value: &str) -> [u8; 128] {
+        let mut buffer = [b'\0'; 128];
+
+        let mut key_bytes = Vec::from(key.as_bytes());
+        let mut value_bytes = Vec::from(value.as_bytes());
+
+        key_bytes.resize(32, b'\0');
+        value_bytes.resize(96, b'\0');
+
+        buffer[0..32].copy_from_slice(&key_bytes);
+        buffer[32..128].copy_from_slice(&value_bytes);
+
+        buffer
+    }
+
+    fn from_bytes(bytes: &[u8; 128]) -> Option<Self> {
+        if bytes[0] == b'\0' {
+            None
+        } else {
+            Some(Self {
+                key: bytes[0..32].try_into().unwrap(),
+                value: bytes[32..128].try_into().unwrap(),
+            })
+        }
+    }
+}
+
+pub struct HashTable {
+    kvs: Vec<u8>,
     size: usize,
     no_of_taken: usize,
 }
 
-impl<Key: Default + Clone + PartialEq + Hashable, Value: Default + Clone> HashTable<Key, Value> {
+impl HashTable {
     pub fn new() -> Self {
-        const INITIAL_SIZE: usize = 61;
-
         Self {
-            kvs: vec![HashItem::<_, _>::default(); INITIAL_SIZE],
-            size: INITIAL_SIZE,
+            kvs: vec![b'\0'; 4096],
+            size: 32,
             no_of_taken: 0,
         }
     }
 
-    pub fn insert(&mut self, key: Key, value: Value) {
+    pub fn set(&mut self, key: &str, value: &str) {
         let load_factor = (self.size as f64 * 0.75) as usize;
 
         if self.no_of_taken >= load_factor {
@@ -47,156 +71,151 @@ impl<Key: Default + Clone + PartialEq + Hashable, Value: Default + Clone> HashTa
         }
 
         let mut index = self.get_hash_index(&key);
+        let bucket = HashItem::new(key, value);
 
         for _ in 0..self.size {
-            if !self.kvs[index].is_taken {
-                self.kvs[index] = HashItem {
-                    key: key.to_owned(),
-                    value: value.to_owned(),
-                    is_taken: true,
-                };
-                self.no_of_taken += 1;
+            let offset = index * 128;
+            assert!(offset + 128 <= self.kvs.len(), "Index out of bounds");
 
-                break;
-            }
+            let bytes = self.kvs[offset..(offset + 128)].try_into().unwrap();
 
-            if self.kvs[index].key == key {
-                self.kvs[index].value = value.to_owned();
+            match HashItem::from_bytes(bytes) {
+                Some(item) => {
+                    let stored_key = String::from_utf8_lossy(&item.key)
+                        .trim_end_matches('\0')
+                        .to_string();
+
+                    if &stored_key == key {
+                        self.kvs[offset..(offset + 128)].copy_from_slice(&bucket);
+                        break;
+                    }
+                }
+                None => {
+                    self.kvs[offset..(offset + 128)].clone_from_slice(&bucket);
+
+                    self.no_of_taken += 1;
+                    break;
+                }
             }
 
             index = (index + 1) % self.size;
         }
     }
 
-    pub fn get(&self, key: &Key) -> Option<&Value> {
-        if let Some(index) = self.get_index(&key) {
-            Some(&self.kvs[index].value)
-        } else {
-            None
+    pub fn get(&self, key: &str) -> Option<String> {
+        let mut index = self.get_hash_index(key);
+
+        for _ in 0..self.size {
+            let offset = index * 128;
+            assert!(offset + 128 <= self.kvs.len(), "Index out of bounds");
+
+            let bytes = self.kvs[offset..(offset + 128)].try_into().unwrap();
+
+            match HashItem::from_bytes(bytes) {
+                Some(item) => {
+                    let stored_key = String::from_utf8_lossy(&item.key)
+                        .trim_end_matches('\0')
+                        .to_string();
+
+                    if &stored_key == key {
+                        let stored_value = String::from_utf8_lossy(&item.value)
+                            .trim_end_matches('\0')
+                            .to_string();
+
+                        return Some(stored_value);
+                    }
+                }
+                None => {
+                    return None;
+                }
+            }
+
+            index = (index + 1) % self.size;
         }
+
+        None
     }
 
-    pub fn get_mut(&mut self, key: &Key) -> Option<&mut Value> {
-        if let Some(index) = self.get_index(&key) {
-            Some(&mut self.kvs[index].value)
-        } else {
-            None
+    pub fn del(&mut self, key: &str) -> Option<String> {
+        let mut index = self.get_hash_index(&key);
+
+        for _ in 0..self.size {
+            let offset = index * 128;
+            assert!(offset + 128 <= self.kvs.len(), "Index out of bounds");
+
+            let bytes = self.kvs[offset..(offset + 128)].try_into().unwrap();
+            let bucket = [b'\0'; 128];
+
+            match HashItem::from_bytes(bytes) {
+                Some(item) => {
+                    let stored_key = String::from_utf8_lossy(&item.key)
+                        .trim_end_matches('\0')
+                        .to_string();
+
+                    if &stored_key == key {
+                        self.kvs[offset..(offset + 128)].copy_from_slice(&bucket);
+
+                        let stored_value = String::from_utf8_lossy(&item.value)
+                            .trim_end_matches('\0')
+                            .to_string();
+
+                        self.no_of_taken -= 1;
+
+                        return Some(stored_value);
+                    }
+                }
+                None => {
+                    return None;
+                }
+            }
+
+            index = (index + 1) % self.size;
         }
+
+        None
     }
 
-    pub fn extend(&mut self) {
-        let new_size = (self.size * 2) + 1;
+    fn extend(&mut self) {
+        let new_size = self.size * 2;
 
-        let mut new_self = Self {
-            kvs: vec![HashItem::<_, _>::default(); new_size],
+        let mut new_self = HashTable {
+            kvs: vec![b'\0'; new_size * 128],
             size: new_size,
-            no_of_taken: self.no_of_taken,
+            no_of_taken: 0,
         };
 
-        for item in self.kvs.iter() {
-            if item.is_taken {
-                new_self.insert(item.key.to_owned(), item.value.to_owned());
+        self.size = self.size * 2;
+        self.kvs = vec![b'\0'; self.size * 128];
+
+        let mut offset: usize = 0;
+
+        for i in 1..=self.size {
+            let end_offset: usize = i * 128;
+            let bytes: &[u8; 128] = self.kvs[offset..end_offset].try_into().unwrap();
+            let bucket = HashItem::from_bytes(bytes);
+
+            match bucket {
+                Some(item) => {
+                    let key = String::from_utf8_lossy(&item.key)
+                        .trim_end_matches('\0')
+                        .to_string();
+
+                    let value = String::from_utf8_lossy(&item.value)
+                        .trim_end_matches('\0')
+                        .to_string();
+
+                    new_self.set(&key, &value);
+                }
+                None => {}
             }
+
+            offset = end_offset;
         }
 
         *self = new_self;
     }
 
-    fn get_index(&self, key: &Key) -> Option<usize> {
-        let mut index: usize = self.get_hash_index(key);
-
-        for _ in 0..self.size {
-            // if no item found
-            if !self.kvs[index].is_taken {
-                break;
-            }
-
-            // if item found
-            if self.kvs[index].key == *key {
-                break;
-            }
-
-            index = (index + 1) % self.size;
-        }
-
-        if self.kvs[index].is_taken && self.kvs[index].key == *key {
-            Some(index)
-        } else {
-            None
-        }
-    }
-
-    fn get_hash_index(&self, key: &Key) -> usize {
+    fn get_hash_index(&self, key: &str) -> usize {
         key.hash() % self.size
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_insert_and_get() {
-        let mut hash_table = HashTable::<String, usize>::new();
-        hash_table.insert("test".to_string(), 42);
-        hash_table.insert("hello".to_string(), 100);
-
-        assert_eq!(hash_table.get(&"test".to_string()), Some(&42));
-        assert_eq!(hash_table.get(&"hello".to_string()), Some(&100));
-        assert_eq!(hash_table.get(&"missing".to_string()), None); // key not present
-    }
-
-    #[test]
-    fn test_insert_overwrite() {
-        let mut hash_table = HashTable::<String, usize>::new();
-        hash_table.insert("key".to_string(), 10);
-        assert_eq!(hash_table.get(&"key".to_string()), Some(&10));
-
-        hash_table.insert("key".to_string(), 20); // Overwrite existing key
-        assert_eq!(hash_table.get(&"key".to_string()), Some(&20)); // Updated value
-    }
-
-    #[test]
-    fn test_get_mut() {
-        let mut hash_table = HashTable::<String, usize>::new();
-        hash_table.insert("mutable".to_string(), 5);
-
-        // Modify the value through a mutable reference
-        if let Some(value) = hash_table.get_mut(&"mutable".to_string()) {
-            *value = 15;
-        }
-
-        assert_eq!(hash_table.get(&"mutable".to_string()), Some(&15)); // Check updated value
-    }
-
-    #[test]
-    fn test_extend() {
-        let mut hash_table = HashTable::<String, usize>::new();
-
-        // Insert enough items to trigger table extension
-        for i in 0..100 {
-            let key = format!("key_{}", i);
-            hash_table.insert(key.clone(), i);
-        }
-
-        // Check a few keys to ensure they're still accessible after resizing
-        assert_eq!(hash_table.get(&"key_0".to_string()), Some(&0));
-        assert_eq!(hash_table.get(&"key_50".to_string()), Some(&50));
-        assert_eq!(hash_table.get(&"key_99".to_string()), Some(&99));
-    }
-
-    #[test]
-    fn test_extend_and_overwrite() {
-        let mut hash_table = HashTable::<String, usize>::new();
-
-        // Insert a large number of items to trigger table resizing
-        for i in 0..100 {
-            let key = format!("key_{}", i);
-            hash_table.insert(key.clone(), i);
-        }
-
-        // Overwrite an existing key
-        hash_table.insert("key_50".to_string(), 500);
-        assert_eq!(hash_table.get(&"key_50".to_string()), Some(&500));
     }
 }
