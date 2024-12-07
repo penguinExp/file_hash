@@ -4,7 +4,7 @@ use hash::HashTable;
 // use table::HashTable;
 
 pub mod hash;
-pub mod table;
+// pub mod table;
 
 fn main() {
     let mut hash_table = HashTable::new();

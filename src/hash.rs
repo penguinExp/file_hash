@@ -137,12 +137,6 @@ impl HashTable {
     }
 
     pub fn del(&mut self, key: &str) -> Option<String> {
-        let load_factor = (self.size as f64 * 0.25) as usize;
-
-        if self.no_of_taken <= load_factor {
-            self.compact();
-        }
-
         let mut index = self.get_hash_index(&key);
 
         for _ in 0..self.size {
@@ -159,13 +153,22 @@ impl HashTable {
                         .to_string();
 
                     if &stored_key == key {
+                        // Actually remove the item by zeroing out the bucket
                         self.kvs[offset..(offset + 128)].copy_from_slice(&bucket);
 
                         let stored_value = String::from_utf8_lossy(&item.value)
                             .trim_end_matches('\0')
                             .to_string();
 
-                        self.no_of_taken -= 1;
+                        // Decrement no_of_taken only if it's not already 0
+                        if self.no_of_taken > 0 {
+                            self.no_of_taken -= 1;
+                        }
+
+                        // Optional: Compact if load is very low
+                        if self.no_of_taken <= (self.size as f64 * 0.1) as usize {
+                            self.compact();
+                        }
 
                         return Some(stored_value);
                     }
@@ -227,11 +230,9 @@ impl HashTable {
             no_of_taken: 0,
         };
 
-        let mut offset: usize = 0;
-
-        for i in 1..=self.size {
-            let end_offset: usize = i * 128;
-            let bytes: &[u8; 128] = self.kvs[offset..end_offset].try_into().unwrap();
+        for i in 0..self.size {
+            let offset = i * 128;
+            let bytes: &[u8; 128] = self.kvs[offset..(offset + 128)].try_into().unwrap();
 
             match HashItem::from_bytes(bytes) {
                 Some(item) => {
@@ -247,8 +248,6 @@ impl HashTable {
                 }
                 None => {}
             }
-
-            offset = end_offset;
         }
 
         *self = new_self;
@@ -268,27 +267,27 @@ mod tests {
     fn test_set_items() {
         let mut hash_table = HashTable::new();
 
-        // insert 100 items into the table
-        for i in 0..100 {
+        // insert 400 items into the table
+        for i in 0..400 {
             let key = i.to_string();
             hash_table.set(&key, &key);
         }
 
-        assert_eq!(hash_table.no_of_taken, 100);
+        assert_eq!(hash_table.no_of_taken, 400);
     }
 
     #[test]
     fn test_get_items() {
         let mut hash_table = HashTable::new();
 
-        // insert 100 items into the table
-        for i in 0..100 {
+        // insert 400 items into the table
+        for i in 0..400 {
             let key = i.to_string();
             hash_table.set(&key, &key);
         }
 
-        // fetch 100 items into from the table
-        for i in 0..100 {
+        // fetch 400 items into from the table
+        for i in 0..400 {
             let key = i.to_string();
 
             if let Some(val) = hash_table.get(&key) {
@@ -303,14 +302,14 @@ mod tests {
     fn test_del_items() {
         let mut hash_table = HashTable::new();
 
-        // insert 25 items into the table
-        for i in 0..25 {
+        // insert 400 items into the table
+        for i in 0..400 {
             let key = i.to_string();
             hash_table.set(&key, &key);
         }
 
-        // del 25 items into from the table
-        for i in 0..25 {
+        // del 400 items into from the table
+        for i in 0..400 {
             let key = i.to_string();
 
             if let Some(val) = hash_table.del(&key) {
@@ -320,13 +319,14 @@ mod tests {
 
         let mut count = 0;
 
-        // get 25 items into from the table
-        for i in 0..25 {
+        // get 400 items into from the table
+        for i in 0..400 {
             let key = i.to_string();
 
             let val = hash_table.get(&key);
 
             if val != None {
+                println!("{key}:{:?}", Some(val));
                 count += 1;
             }
         }
