@@ -9,7 +9,11 @@ pub mod table;
 fn main() {
     let mut hash_table = HashTable::new();
 
+    println!("--------------");
+
+    // ----------------------------
     // benchmark insert operation
+    // ----------------------------
     let start = Instant::now();
 
     for i in 0..100000 {
@@ -21,7 +25,9 @@ fn main() {
 
     println!("Time taken for inserting 100K items: {:?}", duration);
 
+    // ----------------------------
     // benchmark get operation
+    // ----------------------------
     let start = Instant::now();
 
     for i in 0..100000 {
@@ -33,7 +39,23 @@ fn main() {
 
     println!("Time taken for retrieval of 100K items: {:?}", duration);
 
+    // ----------------------------
+    // benchmark del operation
+    // ----------------------------
+    let start = Instant::now();
+
+    for i in 0..100000 {
+        let key = i.to_string();
+        hash_table.del(&key);
+    }
+
+    let duration = start.elapsed();
+
+    println!("Time taken for deletion of 100K items: {:?}", duration);
+
     // usage
+
+    println!("--------------");
 
     let key = String::from("hello");
 
@@ -44,7 +66,7 @@ fn main() {
     if let Some(val) = hash_table.get(&key) {
         println!("Value for key {key} is {}", val);
     } else {
-        println!("Value for key {key} does not exists")
+        println!("Value for key {key} does not exists");
     }
 
     // update value for a key
@@ -54,8 +76,34 @@ fn main() {
     if let Some(val) = hash_table.get(&key) {
         println!("Value for key {key} is {}", val);
     } else {
-        println!("Value for key {key} does not exists")
+        println!("Value for key {key} does not exists");
     }
+
+    // delete item and get value
+    if let Some(val) = hash_table.del(&key) {
+        println!("Deleted key {key}:{}", val);
+    } else {
+        println!("Unable to delete Value for key {key}");
+    }
+
+    // get value for item which does not exists
+    if let Some(val) = hash_table.get(&key) {
+        println!("Value for key {key} is {}", val);
+    } else {
+        println!("Value for key {key} does not exists");
+    }
+
+    // update value for a key
+    hash_table.set(&key, "5");
+
+    // get value for updated item
+    if let Some(val) = hash_table.get(&key) {
+        println!("Value for key {key} is {}", val);
+    } else {
+        println!("Value for key {key} does not exists");
+    }
+
+    println!("--------------");
 
     // -----------------------------------------------
 
