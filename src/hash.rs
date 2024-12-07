@@ -258,3 +258,79 @@ impl HashTable {
         key.hash() % self.size
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_set_items() {
+        let mut hash_table = HashTable::new();
+
+        // insert 100 items into the table
+        for i in 0..100 {
+            let key = i.to_string();
+            hash_table.set(&key, &key);
+        }
+
+        assert_eq!(hash_table.no_of_taken, 100);
+    }
+
+    #[test]
+    fn test_get_items() {
+        let mut hash_table = HashTable::new();
+
+        // insert 100 items into the table
+        for i in 0..100 {
+            let key = i.to_string();
+            hash_table.set(&key, &key);
+        }
+
+        // fetch 100 items into from the table
+        for i in 0..100 {
+            let key = i.to_string();
+
+            if let Some(val) = hash_table.get(&key) {
+                println!("Value for key {key} is {}", val);
+
+                assert_eq!(val, key);
+            }
+        }
+    }
+
+    #[test]
+    fn test_del_items() {
+        let mut hash_table = HashTable::new();
+
+        // insert 25 items into the table
+        for i in 0..25 {
+            let key = i.to_string();
+            hash_table.set(&key, &key);
+        }
+
+        // del 25 items into from the table
+        for i in 0..25 {
+            let key = i.to_string();
+
+            if let Some(val) = hash_table.del(&key) {
+                assert_eq!(val, key);
+            }
+        }
+
+        let mut count = 0;
+
+        // get 25 items into from the table
+        for i in 0..25 {
+            let key = i.to_string();
+
+            let val = hash_table.get(&key);
+
+            if val != None {
+                count += 1;
+            }
+        }
+
+        assert_eq!(count, 0);
+    }
+}

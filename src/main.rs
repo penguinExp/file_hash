@@ -18,7 +18,7 @@ fn main() {
 
     for i in 0..100000 {
         let key = i.to_string();
-        hash_table.set(&key, &i.to_string());
+        hash_table.set(&key, &key);
     }
 
     let duration = start.elapsed();
