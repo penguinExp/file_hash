@@ -137,6 +137,12 @@ impl HashTable {
     }
 
     pub fn del(&mut self, key: &str) -> Option<String> {
+        let load_factor = (self.size as f64 * 0.25) as usize;
+
+        if self.no_of_taken <= load_factor {
+            self.compact();
+        }
+
         let mut index = self.get_hash_index(&key);
 
         for _ in 0..self.size {
@@ -184,9 +190,6 @@ impl HashTable {
             no_of_taken: 0,
         };
 
-        self.size = self.size * 2;
-        self.kvs = vec![b'\0'; self.size * 128];
-
         let mut offset: usize = 0;
 
         for i in 1..=self.size {
@@ -213,6 +216,21 @@ impl HashTable {
         }
 
         *self = new_self;
+    }
+
+    fn compact(&mut self) {
+        // let new_size = self.size / 2;
+
+        // let mut new_self = HashTable {
+        //     kvs: vec![b'\0'; new_size * 128],
+        //     size: new_size,
+        //     no_of_taken: 0,
+        // };
+
+        // self.size = self.size / 2;
+        // self.kvs = vec![b'\0'; self.size * 128];
+
+        // let mut offset: usize = 0;
     }
 
     fn get_hash_index(&self, key: &str) -> usize {
