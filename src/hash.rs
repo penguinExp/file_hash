@@ -219,18 +219,39 @@ impl HashTable {
     }
 
     fn compact(&mut self) {
-        // let new_size = self.size / 2;
+        let new_size = self.size / 2;
 
-        // let mut new_self = HashTable {
-        //     kvs: vec![b'\0'; new_size * 128],
-        //     size: new_size,
-        //     no_of_taken: 0,
-        // };
+        let mut new_self = HashTable {
+            kvs: vec![b'\0'; new_size * 128],
+            size: new_size,
+            no_of_taken: 0,
+        };
 
-        // self.size = self.size / 2;
-        // self.kvs = vec![b'\0'; self.size * 128];
+        let mut offset: usize = 0;
 
-        // let mut offset: usize = 0;
+        for i in 1..=self.size {
+            let end_offset: usize = i * 128;
+            let bytes: &[u8; 128] = self.kvs[offset..end_offset].try_into().unwrap();
+
+            match HashItem::from_bytes(bytes) {
+                Some(item) => {
+                    let key = String::from_utf8_lossy(&item.key)
+                        .trim_end_matches('\0')
+                        .to_string();
+
+                    let value = String::from_utf8_lossy(&item.value)
+                        .trim_end_matches('\0')
+                        .to_string();
+
+                    new_self.set(&key, &value);
+                }
+                None => {}
+            }
+
+            offset = end_offset;
+        }
+
+        *self = new_self;
     }
 
     fn get_hash_index(&self, key: &str) -> usize {
