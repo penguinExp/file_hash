@@ -12,7 +12,29 @@ pub mod hash_bucket;
 fn main() {
     let mut hash = HashTable::new();
 
-    hash.set("key", "I Fucking Need A Pretty large value!");
+    hash.set("k1", "Val1");
+    hash.set("k2", "I Fucking need");
+    // hash.set("k3", "Fucking need I");
+
+    match hash.get("k1") {
+        Some(val) => {
+            println!("k1:{}", val);
+        }
+        None => {
+            println!("404");
+        }
+    };
+
+    match hash.get("k2") {
+        Some(val) => {
+            println!("k2:{}", val);
+        }
+        None => {
+            println!("404");
+        }
+    };
+
+    hash.print_kvs();
 }
 
 // fn main() {
