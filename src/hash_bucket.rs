@@ -210,7 +210,8 @@ impl HashTable {
             let index_bytes: [u8; 1] = self._kvs[offset..(offset + 1)].try_into().unwrap();
 
             if index_bytes[0] == b'\0' {
-                return None;
+                index = (index + 1) % self.size;
+                continue;
             }
 
             let bucket_index = u8::from_le_bytes(index_bytes);
@@ -254,6 +255,76 @@ impl HashTable {
                     value_vec.append(&mut val_bytes.try_into().unwrap());
                 }
 
+                let val = String::from_utf8_lossy(&value_vec)
+                    .trim_end_matches('\0')
+                    .to_string();
+
+                return Some(val);
+            }
+
+            index = (index + 1) % self.size;
+        }
+
+        None
+    }
+
+    pub fn del(&mut self, key: &str) -> Option<String> {
+        let mut index = self._get_hash_index(&key);
+
+        for _ in 0..self.size {
+            let offset = index * 8;
+
+            let index_bytes: [u8; 1] = self._kvs[offset..(offset + 1)].try_into().unwrap();
+
+            if index_bytes[0] == b'\0' {
+                return None;
+            }
+
+            let bucket_index = u8::from_le_bytes(index_bytes);
+
+            let key_bytes = self._kvs[(offset + 1)..(offset + 4)].to_vec();
+
+            let saved_key = String::from_utf8_lossy(&key_bytes)
+                .trim_end_matches('\0')
+                .to_string();
+
+            if bucket_index == 2 && key == saved_key {
+                let value_bytes = self._kvs[(offset + 3)..(offset + 8)].to_vec();
+
+                self._del_at_index(index);
+
+                return Some(
+                    String::from_utf8_lossy(&value_bytes)
+                        .trim_end_matches('\0')
+                        .to_string(),
+                );
+            }
+
+            if bucket_index == 3 && key == saved_key {
+                let index_bytes = self._kvs[(offset + 3)..(offset + 8)].to_vec();
+
+                self._del_at_index(index);
+
+                let mut indexes: Vec<u16> = Vec::new();
+
+                for win in index_bytes.windows(2) {
+                    if win[0] != b'\0' {
+                        let i = u16::from_le_bytes((*win).try_into().unwrap());
+
+                        indexes.push(i);
+                    }
+                }
+
+                let mut value_vec: Vec<u8> = Vec::new();
+
+                for i in indexes {
+                    let val_bytes = self._read_value_at_index(i as usize);
+
+                    self._del_at_index(i as usize);
+
+                    value_vec.append(&mut val_bytes.try_into().unwrap());
+                }
+
                 println!("{:?}", value_vec);
 
                 let val = String::from_utf8_lossy(&value_vec)
@@ -267,6 +338,14 @@ impl HashTable {
         }
 
         None
+    }
+
+    fn _del_at_index(&mut self, index: usize) {
+        let bucket = [b'\0'; 8];
+        let offset = index * 8;
+
+        self._kvs[offset..(offset + 8)].copy_from_slice(&bucket);
+        self._no_of_taken -= 1;
     }
 
     fn _write_at_index(&mut self, bucket: [u8; 8], index: usize) {
@@ -316,6 +395,7 @@ impl HashTable {
 
     pub fn print_kvs(&self) {
         println!("");
+        println!("Taken: {}", self._no_of_taken);
         println!("----------------");
 
         for i in 0..32 {
