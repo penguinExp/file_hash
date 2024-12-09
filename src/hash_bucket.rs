@@ -145,17 +145,29 @@ impl HashTable {
             let offset = index * 8;
             assert!(offset + 8 <= self._kvs.len(), "Index out of bounds");
 
-            let bytes: [u8; 1] = self._kvs[offset..(offset + 1)].try_into().unwrap();
+            let index_bytes: [u8; 1] = self._kvs[offset..(offset + 1)].try_into().unwrap();
 
-            if bytes[0] == b'\0' {
+            if index_bytes[0] == b'\0' {
                 // Found the index
+                break;
+            }
+
+            let bucket_index = u8::from_le_bytes(index_bytes);
+
+            let key_bytes = &self._kvs[(offset + 1)..(offset + 4)];
+
+            let saved_key = String::from_utf8_lossy(key_bytes)
+                .trim_end_matches('\0')
+                .to_string();
+
+            if (bucket_index == 2 || bucket_index == 3) && saved_key == key {
+                self.del(key);
+
                 break;
             }
 
             index = (index + 1) % self.size;
         }
-
-        // TODO: Update the value if key already exists 🥹😭😭
 
         // single item bucket
         if value_bytes.len() <= 4 {
@@ -324,8 +336,6 @@ impl HashTable {
 
                     value_vec.append(&mut val_bytes.try_into().unwrap());
                 }
-
-                println!("{:?}", value_vec);
 
                 let val = String::from_utf8_lossy(&value_vec)
                     .trim_end_matches('\0')

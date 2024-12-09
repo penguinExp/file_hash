@@ -13,8 +13,37 @@ fn main() {
     let mut hash = HashTable::new();
 
     hash.set("k1", "Val1");
-    hash.set("k2", "I Fucking need");
-    hash.set("k3", "Fucking need I");
+
+    match hash.get("k1") {
+        Some(val) => {
+            println!("k1:{}", val);
+        }
+        None => {
+            println!("404");
+        }
+    };
+
+    hash.set("k1", "I Fucking need");
+
+    match hash.get("k1") {
+        Some(val) => {
+            println!("k1:{}", val);
+        }
+        None => {
+            println!("404");
+        }
+    };
+
+    hash.set("k1", "Fucking need I");
+
+    match hash.get("k1") {
+        Some(val) => {
+            println!("k1:{}", val);
+        }
+        None => {
+            println!("404");
+        }
+    };
 
     match hash.del("k1") {
         Some(val) => {
@@ -25,43 +54,7 @@ fn main() {
         }
     };
 
-     match hash.get("k1") {
-        Some(val) => {
-            println!("k1:{}", val);
-        }
-        None => {
-            println!("k1:404");
-        }
-    };
-
-    match hash.del("k2") {
-        Some(val) => {
-            println!("k2:{}", val);
-        }
-        None => {
-            println!("404");
-        }
-    };
-
-    match hash.get("k2") {
-        Some(val) => {
-            println!("k2:{}", val);
-        }
-        None => {
-            println!("k2:404");
-        }
-    };
-
-    match hash.get("k3") {
-        Some(val) => {
-            println!("k3:{}", val);
-        }
-        None => {
-            println!("k3:404");
-        }
-    };
-
-    // hash.print_kvs();
+    hash.print_kvs();
 }
 
 // fn main() {
