@@ -136,7 +136,7 @@ impl HashTable {
         let load_factor = (self.size as f64 * 0.75) as usize;
 
         if (self._no_of_taken + value_bytes.len() + 1) >= load_factor {
-            // TODO: Extend the fucking kvs 🤬
+            self.extend();
         }
 
         // TODO: If the loop is over and no index is found
@@ -158,6 +158,7 @@ impl HashTable {
 
             let saved_key = String::from_utf8_lossy(key_bytes)
                 .trim_end_matches('\0')
+                .trim_start_matches('\0')
                 .to_string();
 
             if (bucket_index == 2 || bucket_index == 3) && saved_key == key {
@@ -232,6 +233,7 @@ impl HashTable {
 
             let saved_key = String::from_utf8_lossy(key_bytes)
                 .trim_end_matches('\0')
+                .trim_start_matches('\0')
                 .to_string();
 
             if bucket_index == 2 && key == saved_key {
@@ -241,6 +243,7 @@ impl HashTable {
                     return Some(
                         String::from_utf8_lossy(value_bytes)
                             .trim_end_matches('\0')
+                            .trim_start_matches('\0')
                             .to_string(),
                     );
                 }
@@ -269,6 +272,7 @@ impl HashTable {
 
                 let val = String::from_utf8_lossy(&value_vec)
                     .trim_end_matches('\0')
+                    .trim_start_matches('\0')
                     .to_string();
 
                 return Some(val);
@@ -298,6 +302,7 @@ impl HashTable {
 
             let saved_key = String::from_utf8_lossy(&key_bytes)
                 .trim_end_matches('\0')
+                .trim_start_matches('\0')
                 .to_string();
 
             if bucket_index == 2 && key == saved_key {
@@ -308,6 +313,7 @@ impl HashTable {
                 return Some(
                     String::from_utf8_lossy(&value_bytes)
                         .trim_end_matches('\0')
+                        .trim_start_matches('\0')
                         .to_string(),
                 );
             }
@@ -339,6 +345,7 @@ impl HashTable {
 
                 let val = String::from_utf8_lossy(&value_vec)
                     .trim_end_matches('\0')
+                    .trim_start_matches('\0')
                     .to_string();
 
                 return Some(val);
@@ -348,6 +355,48 @@ impl HashTable {
         }
 
         None
+    }
+
+    fn extend(&mut self) {
+        let new_size = self.size * 2;
+
+        let mut new_self = HashTable {
+            _kvs: vec![b'\0'; new_size * 8],
+            size: new_size,
+            _no_of_taken: 0,
+        };
+
+        for i in 0..self.size {
+            let offset = i * 8;
+
+            let index_bytes: [u8; 1] = self._kvs[offset..(offset + 1)].try_into().unwrap();
+
+            if index_bytes[0] == b'\0' {
+                continue;
+            }
+
+            let bucket_index = u8::from_le_bytes(index_bytes);
+
+            if bucket_index == 2 || bucket_index == 3 {
+                let key_bytes = &self._kvs[(offset + 1)..(offset + 4)];
+
+                let saved_key = String::from_utf8_lossy(key_bytes)
+                    .trim_end_matches('\0')
+                    .trim_start_matches('\0')
+                    .to_string();
+
+                match self.get(&saved_key) {
+                    Some(val) => {
+                        new_self.set(&saved_key, &val);
+                    }
+                    None => {}
+                }
+
+                continue;
+            }
+        }
+
+        *self = new_self;
     }
 
     fn _del_at_index(&mut self, index: usize) {

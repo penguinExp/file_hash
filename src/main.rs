@@ -3,6 +3,8 @@
 // use hash::HashTable;
 // use table::HashTable;
 
+use std::time::Instant;
+
 use hash_bucket::HashTable;
 
 pub mod hash;
@@ -12,50 +14,85 @@ pub mod hash_bucket;
 fn main() {
     let mut hash = HashTable::new();
 
-    hash.set("k1", "Val1");
+    println!("--------------");
 
-    match hash.get("k1") {
-        Some(val) => {
-            println!("k1:{}", val);
-        }
-        None => {
-            println!("404");
-        }
-    };
+    // ----------------------------
+    // benchmark insert operation
+    // ----------------------------
+    let start = Instant::now();
 
-    hash.set("k1", "I Fucking need");
+    for i in 1..100 {
+        let key = i.to_string();
+        hash.set(&key, &key);
+    }
 
-    match hash.get("k1") {
-        Some(val) => {
-            println!("k1:{}", val);
-        }
-        None => {
-            println!("404");
-        }
-    };
+    let duration = start.elapsed();
 
-    hash.set("k1", "Fucking need I");
+    println!("Time taken for inserting 100 items: {:?}", duration);
 
-    match hash.get("k1") {
-        Some(val) => {
-            println!("k1:{}", val);
-        }
-        None => {
-            println!("404");
-        }
-    };
+    // ----------------------------
+    // benchmark get operation
+    // ----------------------------
+    let start = Instant::now();
 
-    match hash.del("k1") {
-        Some(val) => {
-            println!("k1:{}", val);
-        }
-        None => {
-            println!("404");
-        }
-    };
+    for i in 1..100 {
+        let key = i.to_string();
 
-    hash.print_kvs();
+        assert_eq!(hash.get(&key), Some(key.to_owned()));
+    }
+
+    let duration = start.elapsed();
+
+    println!("Time taken for retrieval of 100 items: {:?}", duration);
 }
+
+// fn main() {
+//     let mut hash = HashTable::new();
+
+//     hash.set("k1", "Val1");
+
+//     match hash.get("k1") {
+//         Some(val) => {
+//             println!("k1:{}", val);
+//         }
+//         None => {
+//             println!("404");
+//         }
+//     };
+
+//     hash.set("k1", "I Fucking need");
+
+//     match hash.get("k1") {
+//         Some(val) => {
+//             println!("k1:{}", val);
+//         }
+//         None => {
+//             println!("404");
+//         }
+//     };
+
+//     hash.set("k1", "Fucking need I");
+
+//     match hash.get("k1") {
+//         Some(val) => {
+//             println!("k1:{}", val);
+//         }
+//         None => {
+//             println!("404");
+//         }
+//     };
+
+//     match hash.del("k1") {
+//         Some(val) => {
+//             println!("k1:{}", val);
+//         }
+//         None => {
+//             println!("404");
+//         }
+//     };
+
+//     hash.print_kvs();
+// }
 
 // fn main() {
 //     let mut hash_table = HashTable::new();
